@@ -1,0 +1,17 @@
+Package: ft2xlsx
+Type: Package
+Title: Export Flextable Objects to XLSX Files
+Version: 0.1.0
+Authors@R: c(
+    person(
+      "John", "Orr",
+      email = "john.orr@doh.vi.gov",
+      role = c("aut", "cre")
+    )
+  )
+Description: Takes a flextable object and builds an .xlsx file. Styling such as shading, borders, colors, text decorations, etc. are maintained.
+License: MIT
+Encoding: UTF-8
+Depends: dplyr,openxlsx
+LazyData: true
+RoxygenNote: 7.3.2
