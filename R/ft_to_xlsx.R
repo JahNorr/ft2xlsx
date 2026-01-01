@@ -1,7 +1,4 @@
 
-library(openxlsx)
-library(dplyr)
-
 
 #' Convert Flextable Object to .xlsx File
 #'
@@ -13,6 +10,12 @@ library(dplyr)
 #' @param append - append this to an already existing file
 #'
 #' @returns - NULL
+#'
+#' @import dplyr
+#' @import openxlsx
+#' @import flextable
+#' @import officer
+#'
 #' @export
 #'
 #' @examples
@@ -59,7 +62,7 @@ ft_to_xlsx <- function(ft, file = "ft_to_xlsx.xlsx",
   # ===========================================
   #   add sheet
 
-  ws = wb %>% addWorksheet(sheetName = sheet_name)
+  ws = wb %>% openxlsx::addWorksheet(sheetName = sheet_name)
 
   # get row offsets to body from header size
 
@@ -72,14 +75,15 @@ ft_to_xlsx <- function(ft, file = "ft_to_xlsx.xlsx",
   # add datasets
 
   df_header <- ft$header$dataset %>% select(all_of(ft$header$col_keys))
+
   df_body <- ft$body$dataset %>% select(all_of(ft$body$col_keys))
 
-  wb %>% writeData(ws, df_header,
+  wb %>% openxlsx::writeData(ws, df_header,
                    startCol = start_col,
                    startRow = start_header_row,
                    colNames = FALSE)
 
-  wb %>% writeData(ws, df_body,
+  wb %>% openxlsx::writeData(ws, df_body,
                    startCol = start_col,
                    startRow = start_body_row,
                    colNames = FALSE)
@@ -152,7 +156,7 @@ ft_to_xlsx <- function(ft, file = "ft_to_xlsx.xlsx",
   #
   #       save what we have
 
-  wb %>% saveWorkbook(file = file, overwrite = TRUE)
+  wb %>% openxlsx::saveWorkbook(file = file, overwrite = TRUE)
 
 }
 
@@ -167,7 +171,7 @@ xl_styling <- function(wb,ws, part, start_row = 1, start_col = 1) {
   cell_styles = part$styles$cells
   par_styles = part$styles$pars
   text_styles = part$styles$text
-
+  browser()
   sapply(1:nrows, function(r) {
     sapply(1:ncols, function(c) {
 
@@ -176,11 +180,18 @@ xl_styling <- function(wb,ws, part, start_row = 1, start_col = 1) {
 
       border_data <- border_data(styles = cell_styles, row = r, col = c)
       border_widths <- border_data$width
+
+      # cat("border_style: ", border_data$style, "\n")
+      # cat("border_width: ", border_data$width, "\n--------------------------------------\n")
+
+      #if(any(grepl("dotted", border_data$style))) browser()
+
+
       border_styles <- border_data$style %>%
         gsub("solid","thin",.) %>%
         {.[border_widths == 0] <- "none";.} %>%
-        {.[border_widths > 0.7] <- "medium";.} %>%
-        {.[border_widths > 1] <- "thick";.} %>%
+        {.[border_widths > 0.7 & . == "thin"] <- "medium";.} %>%
+        {.[border_widths > 1 & . == "thin"] <- "thick";.} %>%
         {.[border_data$color == "transparent"] <- "none";.}
 
       border_colors <- border_data$color %>%
@@ -200,7 +211,7 @@ xl_styling <- function(wb,ws, part, start_row = 1, start_col = 1) {
 
       text_dec <- c(bold, italic, underline)
 
-      style <- createStyle(fgFill = fill_val,
+      style <- openxlsx::createStyle(fgFill = fill_val,
                            fontName = font_family,
                            fontSize = font_size,
                            fontColour = color,
@@ -214,7 +225,7 @@ xl_styling <- function(wb,ws, part, start_row = 1, start_col = 1) {
 
       style_col <- c + col_offset
       style_row <- r + row_offset
-      wb %>% addStyle(ws, style = style, rows = style_row, cols = style_col)
+      wb %>% openxlsx::addStyle(ws, style = style, rows = style_row, cols = style_col)
 
     })
   })
@@ -334,7 +345,7 @@ xl_merge_from_rowspans <- function(wb,ws,spans, start_row = 1, start_col = 1) {
       if(span_val > 1) {
         spn_cols <- (c:(c + span_val - 1)) + col_offset
         spn_row <- r + row_offset
-        wb %>% mergeCells(ws, cols = spn_cols, rows = spn_row)
+        wb %>% openxlsx::mergeCells(ws, cols = spn_cols, rows = spn_row)
       }
 
     })
@@ -360,7 +371,7 @@ xl_merge_from_colspans <- function(wb,ws,spans, start_row = 1, start_col = 1) {
         # if(row_offset > 0) browser()
         spn_col <- c + col_offset
         spn_rows <- (r:(r + span_val - 1)) + row_offset
-        wb %>% mergeCells(ws, cols = spn_col, rows = spn_rows)
+        wb %>% openxlsx::mergeCells(ws, cols = spn_col, rows = spn_rows)
       }
 
     })
@@ -368,3 +379,69 @@ xl_merge_from_colspans <- function(wb,ws,spans, start_row = 1, start_col = 1) {
 
   wb
 }
+
+
+colformat_xl_init <- function(ft) {
+
+  if(is.null(ft$excel)) {
+    types = sapply(ft$body$dataset, class)
+    formats <- rep("",length(types))
+    names(formats) <- names(types)
+
+    ft$excel <- list(types = types, formats = formats)
+  }
+
+  ft
+}
+
+get_colformats_xl <- function(ft, j=NULL) {
+
+  format <- "GENERAL"
+  if(!is.null(ft$excel)) return(ft$excel$formats[j])
+
+  format
+
+}
+
+colformat_xl <- function(ft, j=NULL,format = NULL) {
+
+  if(is.null(j)) j <- col_keys
+  ft$excel$formats[j] <- format
+
+  ft
+
+}
+
+
+
+colformat_int_xl <- function(ft, i= NULL, j= NULL, ..., fmt = "") {
+
+  ft <- ft %>%
+    colformat_xl_init() %>%
+    colformat_xl(j,fmt) %>%
+    colformat_int(i, j, ...)
+
+  ft
+}
+#
+
+colformat_num_xl <- function(ft, i= NULL, j= NULL, ..., fmt = "") {
+
+  ft <- ft %>%
+    colformat_xl_init() %>%
+    colformat_xl(j,fmt) %>%
+    colformat_num(i, j, ...)
+
+  ft
+}
+
+colformat_date_xl <- function(ft, i= NULL, j= NULL, ..., fmt = "") {
+
+  ft <- ft %>%
+    colformat_xl_init() %>%
+    colformat_xl(j,fmt) %>%
+    colformat_date(i, j, ...)
+
+  ft
+}
+
