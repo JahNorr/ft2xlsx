@@ -17,7 +17,7 @@ library(flextable)
 #' @returns - NULL
 #'
 #' @import dplyr
-#' @import openxlsx
+#' @import openxlsx2
 #' @import flextable
 #' @import officer
 #'
@@ -56,6 +56,7 @@ ft_to_xlsx2 <- function(ft, file = "ft_to_xlsx.xlsx",
                         bottom_margin = 0.75,
                         style = TRUE,
                         append = FALSE,
+                        tab_color = tab_color,
                         verbose = FALSE) {
 
 
@@ -71,7 +72,7 @@ ft_to_xlsx2 <- function(ft, file = "ft_to_xlsx.xlsx",
 
   if (sheet_name %in% wb$sheet_names) wb$remove_worksheet(sheet_name)
 
-  wb$add_worksheet(sheet_name)
+  wb$add_worksheet(sheet_name, tab_color = tab_color)
 
   ws <- sheet_name
 
@@ -183,8 +184,6 @@ ft_to_xlsx2 <- function(ft, file = "ft_to_xlsx.xlsx",
     # wb$sheet_names <- wb$sheet_names[order]
     wb$set_order(order)
   }
-
-
 
   # Save workbook
 
@@ -310,6 +309,11 @@ add_styling <- function(wb, ft, start_header_row, start_body_row , start_footer_
 
 add_my_styles_to_xlsx <- function(wb, styles) {
 
+  remove <- apply(styles %>% select(-font_id), 1, function(x) all(is.na(x)))
+
+  styles <- styles[!remove,]
+
+
   purrr::pwalk(
     styles,
     \(vertical.align, text.direction, fill_color, hrule, border_id,
@@ -341,9 +345,14 @@ add_my_fill_styles <- function(wb, styles) {
 
 add_my_font_styles <- function(wb, styles) {
 
+  remove <- apply(styles %>% select(-font_id), 1, function(x) all(is.na(x)))
+
+  styles <- styles[!remove,]
+
   purrr::pmap(
     styles,
     \(b,color,font_id,i,name,sz,u,vert_align) {
+
 
       x <- create_font(b = b, color = wb_color(color), i = i, name = name, charset = "1",
                        sz = as.character(as.integer(sz)), u = u,

@@ -3,3 +3,6 @@
 .RData
 .Ruserdata
 *.xlsx
+
+*/archive/*
+data_raw/*

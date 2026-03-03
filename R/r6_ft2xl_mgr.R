@@ -26,7 +26,11 @@ XL_Mgr <- R6Class(
     sheetname_pvt = NULL,
 
     # Default sheet name (currently not heavily used)
-    wb_pvt = NULL
+    wb_pvt = NULL,
+
+    col2hex = function(x) {
+      grDevices::rgb(t(grDevices::col2rgb(x)), maxColorValue = 255)
+    }
   ),
 
   public = list(
@@ -308,7 +312,7 @@ FT2XL_Mgr <- R6Class(
     append_pvt = FALSE,
 
     # Verbose logging flag
-    verbose = FALSE
+    verbose = TRUE
   ),
 
   public = list(
@@ -327,13 +331,26 @@ FT2XL_Mgr <- R6Class(
     #
     # This is a thin wrapper around ft2xlsx::ft_to_xlsx2()
     #--------------------------------------------------------------------------
-    add_sheet = function(ft = NULL, sheetname = NULL, index = NULL, append = NULL) {
+    add_sheet = function(ft = NULL, sheetname = NULL, index = NULL,
+                         append = NULL, tab_color = NULL) {
 
       # Fallback to default sheet name if not provided
       if (is.null(sheetname)) sheetname <- super$sheetname
 
       # If append is not explicitly provided, use internal state
       if (is.null(append)) append <- private$append_pvt
+
+      if(!is.null(tab_color)) {
+        if(!grepl("^[0-9A-Fa-f]{6}$", tab_color)) {
+          if(!grepl("^#[0-9A-Fa-f]{6}$", tab_color)) {
+
+            tab_color <- private$col2hex(tab_color)
+
+          }
+          tab_color <- gsub("^.","", tab_color)
+        }
+
+      }
 
       # Write flextable to Excel
       ft_to_xlsx2(
@@ -347,307 +364,322 @@ FT2XL_Mgr <- R6Class(
         bottom_margin = private$bottom_margin_pvt,
         start_row     = private$start_row,
         start_col     = private$start_col,
-        append        = append
+        append        = append,
+        tab_color     = tab_color
       )
 
       # Once a sheet has been written, all subsequent writes should append
       private$append_pvt <- TRUE
     }
-  ),
+          ),
 
-  active = list(
+          active = list(
 
-    #--------------------------------------------------------------------------
-    # filename
-    #
-    # Getter / setter for Excel filename.
-    # Setting a new filename automatically resets append behavior.
-    #--------------------------------------------------------------------------
-    filename = function(value) {
+            #--------------------------------------------------------------------------
+            # filename
+            #
+            # Getter / setter for Excel filename.
+            # Setting a new filename automatically resets append behavior.
+            #--------------------------------------------------------------------------
+            filename = function(value) {
 
-      if (missing(value)) return(super$filename)
+              if (missing(value)) return(super$filename)
 
-      super$filename <- value
+              super$filename <- value
 
-      # New file → do not append until first write
-      private$append_pvt <- FALSE
-    },
-
-
-    #--------------------------------------------------------------------------
-    # append
-    #
-    # Controls whether sheets are appended to an existing file.
-    #--------------------------------------------------------------------------
-    append = function(value) {
-
-      if (missing(value)) return(private$append_pvt)
-
-      if (!inherits(value, "logical")) {
-        warning("append must be logical")
-        return(NULL)
-      }
-
-      private$append_pvt <- value
-    },
-
-    #--------------------------------------------------------------------------
-    # left_margin
-    #
-    # sets a printing margin
-    #--------------------------------------------------------------------------
-    left_margin = function(value) {
-
-      if (missing(value)) return(private$left_margin_pvt)
-
-      if (!inherits(value, "numeric")) {
-        warning("append must be numeric")
-        return(NULL)
-      }
-
-      private$left_margin_pvt <- value
+              # New file → do not append until first write
+              private$append_pvt <- FALSE
+            },
 
 
-    },
+            #--------------------------------------------------------------------------
+            # append
+            #
+            # Controls whether sheets are appended to an existing file.
+            #--------------------------------------------------------------------------
+            append = function(value) {
 
-    #--------------------------------------------------------------------------
-    # right_margin
-    #
-    # sets a printing margin
-    #--------------------------------------------------------------------------
-    right_margin = function(value) {
+              if (missing(value)) return(private$append_pvt)
 
-      if (missing(value)) return(private$right_margin_pvt)
+              if (!inherits(value, "logical")) {
+                warning("append must be logical")
+                return(NULL)
+              }
 
-      if (!inherits(value, "numeric")) {
-        warning("append must be numeric")
-        return(NULL)
-      }
+              private$append_pvt <- value
+            },
 
-      private$right_margin_pvt <- value
+            #--------------------------------------------------------------------------
+            # left_margin
+            #
+            # sets a printing margin
+            #--------------------------------------------------------------------------
+            left_margin = function(value) {
 
+              if (missing(value)) return(private$left_margin_pvt)
 
-    },
+              if (!inherits(value, "numeric")) {
+                warning("append must be numeric")
+                return(NULL)
+              }
 
-    #--------------------------------------------------------------------------
-    # top_margin
-    #
-    # sets a printing margin
-    #--------------------------------------------------------------------------
-    top_margin = function(value) {
-
-      if (missing(value)) return(private$top_margin_pvt)
-
-      if (!inherits(value, "numeric")) {
-        warning("append must be numeric")
-        return(NULL)
-      }
-
-      private$top_margin_pvt <- value
+              private$left_margin_pvt <- value
 
 
-    },
+            },
 
-    #--------------------------------------------------------------------------
-    # bottom_margin
-    #
-    # sets a printing margin
-    #--------------------------------------------------------------------------
-    bottom_margin = function(value) {
+            #--------------------------------------------------------------------------
+            # right_margin
+            #
+            # sets a printing margin
+            #--------------------------------------------------------------------------
+            right_margin = function(value) {
 
-      if (missing(value)) return(private$bottom_margin_pvt)
+              if (missing(value)) return(private$right_margin_pvt)
 
-      if (!inherits(value, "numeric")) {
-        warning("append must be numeric")
-        return(NULL)
-      }
+              if (!inherits(value, "numeric")) {
+                warning("append must be numeric")
+                return(NULL)
+              }
 
-      private$bottom_margin_pvt <- value
-
-
-    }
-  )
-)
-
-#------------------------------------------------------------------------------
-# FT2XL_Stats_Mgr
-#
-# Extension of FT2XL_Mgr specialized for statistical outputs.
-# Integrates with an FT_StatsMgr to generate flextables dynamically
-# from "columns of interest" (COIs).
-#------------------------------------------------------------------------------
-
-#' @export
-FT2XL_Stats_Mgr <- R6Class(
-  classname = "FT2XL_Stats_Mgr",
-  inherit   = FT2XL_Mgr,
-
-  private = list(
-    # Inherited ft_mgr is expected to be an FT_StatsMgr
-  ),
-
-  public = list(
-
-    #--------------------------------------------------------------------------
-    # add_sheet
-    #
-    # Adds a sheet using either:
-    #   - an explicitly supplied flextable, or
-    #   - a COI resolved via the FT_StatsMgr
-    #--------------------------------------------------------------------------
-    add_sheet = function(ft = NULL, coi = NULL, sheetname = NULL,
-                         index = NULL, append = NULL) {
-
-      # Default sheet name logic
-      if (is.null(sheetname)) sheetname <- private$sheetname
-      if (is.null(sheetname) && !is.null(coi)) sheetname <- coi
-
-      if (is.null(append)) append <- private$append_pvt
-
-      # Lazily generate flextable if not provided
-      if (is.null(ft)) {
-        ft <- private$ft_mgr$ft(coi = coi)
-      }
-
-      # Delegate to parent class
-      super$add_sheet(
-        ft        = ft,
-        sheetname = sheetname,
-        index     = index,
-        append    = append
-      )
-    },
-
-    #--------------------------------------------------------------------------
-    # add_sheets
-    #
-    # Batch version of add_sheet.
-    # Generates flextables from COIs if not explicitly provided.
-    #--------------------------------------------------------------------------
-    add_sheets = function(fts = NULL, cois = NULL,
-                          sheetnames = NULL, append = NULL) {
+              private$right_margin_pvt <- value
 
 
-      # Default sheet names map to COIs
-      if (is.null(sheetnames)) sheetnames <- cois
+            },
 
-      # Generate flextables if missing
-      if (is.null(fts)) {
-        fts <- purrr::map(cois, \(coi) {
-          private$ft_mgr$ft(coi = coi)
-        })
-      }
+            #--------------------------------------------------------------------------
+            # top_margin
+            #
+            # sets a printing margin
+            #--------------------------------------------------------------------------
+            top_margin = function(value) {
 
-      nfts <- length(fts)
+              if (missing(value)) return(private$top_margin_pvt)
 
-      # Append logic:
-      #   first sheet → current append state
-      #   remaining   → TRUE
-      if (is.null(append)) {
-        append <- private$append_pvt
-      }
+              if (!inherits(value, "numeric")) {
+                warning("append must be numeric")
+                return(NULL)
+              }
 
-      append <- c(append, rep(TRUE, nfts - 1))
-      # Sequential write
-      purrr::walk(seq_len(nfts), \(ift) {
-        cat(cois[ift], "\n")
+              private$top_margin_pvt <- value
 
-        super$add_sheet(
-          ft        = fts[[ift]],
-          sheetname = sheetnames[ift],
-          append    = append[ift]
+
+            },
+
+            #--------------------------------------------------------------------------
+            # bottom_margin
+            #
+            # sets a printing margin
+            #--------------------------------------------------------------------------
+            bottom_margin = function(value) {
+
+              if (missing(value)) return(private$bottom_margin_pvt)
+
+              if (!inherits(value, "numeric")) {
+                warning("append must be numeric")
+                return(NULL)
+              }
+
+              private$bottom_margin_pvt <- value
+
+
+            }
+          )
         )
-      })
-    },
 
-    #--------------------------------------------------------------------------
-    # add_section
-    #
-    # High-level helper for exporting structured report sections.
-    # Relies heavily on external layout metadata and global context.
-    #--------------------------------------------------------------------------
-    add_section = function(type = "Core",
-                           section = NULL,
-                           sect_num = NULL,
-                           filename = NULL) {
+        #------------------------------------------------------------------------------
+        # FT2XL_Stats_Mgr
+        #
+        # Extension of FT2XL_Mgr specialized for statistical outputs.
+        # Integrates with an FT_StatsMgr to generate flextables dynamically
+        # from "columns of interest" (COIs).
+        #------------------------------------------------------------------------------
 
-      # At least one section selector must be provided
-      if (is.null(sect_num) && is.null(section)) return(FALSE)
+        #' @export
+        FT2XL_Stats_Mgr <- R6Class(
+          classname = "FT2XL_Stats_Mgr",
+          inherit   = FT2XL_Mgr,
 
-      # Load layout metadata
-      lo_mgr <- Layout_Mgr$new(type = "data")
+          private = list(
+            # Inherited ft_mgr is expected to be an FT_StatsMgr
 
-      df_lo <- lo_mgr$layout() %>%
-        filter(sect_type == {{ type }}) %>%
-        select(sect_num, section) %>%
-        distinct() %>%
-        arrange(sect_num)
+          ),
 
-      # Filter by section number or name
-      if (!is.null(sect_num)) {
-        df_lo <- df_lo %>% filter(sect_num == {{ sect_num }})
-      } else if (!is.null(section)) {
-        df_lo <- df_lo %>% filter(grepl({{ section }}, section))
-      }
+          public = list(
 
-      # Iterate through sections and export each
-      purrr::pwalk(df_sections, \(sect_num, section) {
+            initialize = function(ft_stats_mgr = NULL, ...) {
 
-        filename <- paste0(
-          "annual_", year, "_core_",
-          sect_num, "_", section, ".xlsx"
-        ) %>%
-          gsub("[ ]", "_", .) %>%
-          gsub("/", "_", ., fixed = TRUE) %>%
-          paste0(dir, .)
+              private$ft_mgr <- ft_stats_mgr
 
-        cat(filename, "\n")
+              super$initialize(...)
 
-        xl_mgr$filename <- filename
 
-        cois <- df_lo_core %>%
-          filter(sect_num == {{ sect_num }}) %>%
-          pull(col_name)
+            },
 
-        purrr::walk(cois, \(coi) {
-          xl_mgr$add_sheet(coi = coi)
-        })
-      })
-    }
-  ),
+            #--------------------------------------------------------------------------
+            # add_sheet
+            #
+            # Adds a sheet using either:
+            #   - an explicitly supplied flextable, or
+            #   - a COI resolved via the FT_StatsMgr
+            #--------------------------------------------------------------------------
+            add_sheet = function(ft = NULL, coi = NULL, sheetname = NULL,
+                                 index = NULL, append = NULL, tab_color = NULL) {
 
-  active = list(
+              # Default sheet name logic
+              if (is.null(sheetname)) sheetname <- private$sheetname
+              if (is.null(sheetname) && !is.null(coi)) sheetname <- coi
 
-    #--------------------------------------------------------------------------
-    # append (redeclared for clarity)
-    #--------------------------------------------------------------------------
-    append = function(value) {
+              #if (is.null(sheetname)) browser()
 
-      if (missing(value)) return(private$append_pvt)
+              if (is.null(append)) append <- private$append_pvt
 
-      if (!inherits(value, "logical")) {
-        warning("append must be logical")
-        return(NULL)
-      }
+              # Lazily generate flextable if not provided
+              if (is.null(ft)) {
+                ft <- private$ft_mgr$ft(coi = coi)
+              }
 
-      private$append_pvt <- value
-    },
+              # Delegate to parent class
+              super$add_sheet(
+                ft        = ft,
+                sheetname = sheetname,
+                index     = index,
+                append    = append,
+                tab_color = tab_color
+              )
+            },
 
-    #--------------------------------------------------------------------------
-    # ft_stats_mgr
-    #
-    # Getter / setter for the FT_StatsMgr dependency.
-    #--------------------------------------------------------------------------
-    ft_stats_mgr = function(mgr) {
+            #--------------------------------------------------------------------------
+            # add_sheets
+            #
+            # Batch version of add_sheet.
+            # Generates flextables from COIs if not explicitly provided.
+            #--------------------------------------------------------------------------
+            add_sheets = function(fts = NULL, cois = NULL,
+                                  sheetnames = NULL, append = NULL, tab_color = NULL) {
 
-      if (missing(mgr)) return(private$ft_mgr)
 
-      if (!inherits(mgr, "FT_StatsMgr")) {
-        warning("mgr must be class FT_StatsMgr")
-        return(NULL)
-      }
+              # Default sheet names map to COIs
+              if (is.null(sheetnames)) sheetnames <- cois
 
-      private$ft_mgr <- mgr
-    }
-  )
-)
+              # Generate flextables if missing
+              if (is.null(fts)) {
+                fts <- purrr::map(cois, \(coi) {
+                  private$ft_mgr$ft(coi = coi)
+                })
+              }
+
+              nfts <- length(fts)
+
+              # Append logic:
+              #   first sheet → current append state
+              #   remaining   → TRUE
+              if (is.null(append)) {
+                append <- private$append_pvt
+              }
+
+              append <- c(append, rep(TRUE, nfts - 1))
+              # Sequential write
+              purrr::walk(seq_len(nfts), \(ift) {
+                cat(cois[ift], "\n")
+
+                super$add_sheet(
+                  ft        = fts[[ift]],
+                  sheetname = sheetnames[ift],
+                  append    = append[ift],
+                  tab_color = tab_color
+                )
+              })
+            },
+
+            #--------------------------------------------------------------------------
+            # add_section
+            #
+            # High-level helper for exporting structured report sections.
+            # Relies heavily on external layout metadata and global context.
+            #--------------------------------------------------------------------------
+            add_section = function(type = "Core",
+                                   section = NULL,
+                                   sect_num = NULL,
+                                   filename = NULL) {
+
+              # At least one section selector must be provided
+              if (is.null(sect_num) && is.null(section)) return(FALSE)
+
+              # Load layout metadata
+              lo_mgr <- Layout_Mgr$new(type = "data")
+
+              df_lo <- lo_mgr$layout() %>%
+                filter(sect_type == {{ type }}) %>%
+                select(sect_num, section) %>%
+                distinct() %>%
+                arrange(sect_num)
+
+              # Filter by section number or name
+              if (!is.null(sect_num)) {
+                df_lo <- df_lo %>% filter(sect_num == {{ sect_num }})
+              } else if (!is.null(section)) {
+                df_lo <- df_lo %>% filter(grepl({{ section }}, section))
+              }
+
+              # Iterate through sections and export each
+              purrr::pwalk(df_sections, \(sect_num, section) {
+
+                filename <- paste0(
+                  "annual_", year, "_core_",
+                  sect_num, "_", section, ".xlsx"
+                ) %>%
+                  gsub("[ ]", "_", .) %>%
+                  gsub("/", "_", ., fixed = TRUE) %>%
+                  paste0(dir, .)
+
+                cat(filename, "\n")
+
+                xl_mgr$filename <- filename
+
+                cois <- df_lo_core %>%
+                  filter(sect_num == {{ sect_num }}) %>%
+                  pull(col_name)
+
+                purrr::walk(cois, \(coi) {
+                  xl_mgr$add_sheet(coi = coi)
+                })
+              })
+            }
+          ),
+
+          active = list(
+
+            #--------------------------------------------------------------------------
+            # append (redeclared for clarity)
+            #--------------------------------------------------------------------------
+            append = function(value) {
+
+              if (missing(value)) return(private$append_pvt)
+
+              if (!inherits(value, "logical")) {
+                warning("append must be logical")
+                return(NULL)
+              }
+
+              private$append_pvt <- value
+            },
+
+            #--------------------------------------------------------------------------
+            # ft_stats_mgr
+            #
+            # Getter / setter for the FT_StatsMgr dependency.
+            #--------------------------------------------------------------------------
+            ft_stats_mgr = function(mgr) {
+
+              if (missing(mgr)) return(private$ft_mgr)
+
+              if (!inherits(mgr, "FT_StatsMgr")) {
+                warning("mgr must be class FT_StatsMgr")
+                return(NULL)
+              }
+
+              private$ft_mgr <- mgr
+            }
+          )
+        )
