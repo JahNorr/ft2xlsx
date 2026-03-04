@@ -295,7 +295,7 @@ XLSX_XML_Mgr <-
                 rename({{id_col}} := id)
             },
             error = function(e) {
-              browser()
+              #browser()
             })
           })
 

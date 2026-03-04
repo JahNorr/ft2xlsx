@@ -12,6 +12,6 @@ Authors@R: c(
 Description: Takes a flextable object and builds an .xlsx file. Styling such as shading, borders, colors, text decorations, etc. are maintained.
 License: MIT
 Encoding: UTF-8
-Depends: dplyr,openxlsx, openxlsx2
+Depends: dplyr,openxlsx, openxlsx2, flextable
 LazyData: true
 RoxygenNote: 7.3.3
