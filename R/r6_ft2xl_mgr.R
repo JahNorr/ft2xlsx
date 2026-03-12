@@ -312,7 +312,7 @@ FT2XL_Mgr <- R6Class(
     append_pvt = FALSE,
 
     # Verbose logging flag
-    verbose = TRUE
+    verbose_pvt = TRUE
   ),
 
   public = list(
@@ -320,16 +320,18 @@ FT2XL_Mgr <- R6Class(
     #--------------------------------------------------------------------------
     # Constructor
     #--------------------------------------------------------------------------
-    initialize = function(filename = NULL) {
+    initialize = function(filename = NULL, verbose = FALSE) {
 
       # Filename can be provided at initialization or later via active binding
-      super$filename = filename
+      super$filename  <-  filename
+      private$verbose_pvt <- verbose
+
     },
 
     #--------------------------------------------------------------------------
     # Add a single worksheet to the Excel file
     #
-    # This is a thin wrapper around ft2xlsx::ft_to_xlsx2()
+    # This is a wrapper around ft2xlsx::ft_to_xlsx2()
     #--------------------------------------------------------------------------
     add_sheet = function(ft = NULL, sheetname = NULL, index = NULL,
                          append = NULL, tab_color = NULL) {
@@ -365,7 +367,8 @@ FT2XL_Mgr <- R6Class(
         start_row     = private$start_row,
         start_col     = private$start_col,
         append        = append,
-        tab_color     = tab_color
+        tab_color     = tab_color,
+        verbose = private$verbose_pvt
       )
 
       # Once a sheet has been written, all subsequent writes should append
@@ -663,6 +666,18 @@ FT2XL_Mgr <- R6Class(
               }
 
               private$append_pvt <- value
+            },
+
+            verbose = function(value) {
+
+              if (missing(value)) return(private$verbose_pvt)
+
+              if (!inherits(value, "logical")) {
+                warning("verbose must be logical")
+                return(NULL)
+              }
+
+              private$verbose_pvt <- value
             },
 
             #--------------------------------------------------------------------------

@@ -60,7 +60,6 @@ ft_to_xlsx2 <- function(ft, file = "ft_to_xlsx.xlsx",
                         verbose = FALSE) {
 
 
-
   if(verbose) cat("-----------------------------------\n","
                    ... in ft_to_xlsx2\n")
 
@@ -311,8 +310,9 @@ add_my_styles_to_xlsx <- function(wb, styles) {
 
   remove <- apply(styles %>% select(-font_id), 1, function(x) all(is.na(x)))
 
-  styles <- styles[!remove,]
-
+  styles <- styles[!remove,] %>%
+    select(vertical.align, text.direction, fill_color, hrule, border_id,
+           fill_id, margins_id, horizontal, padding_id, font_id, style_id)
 
   purrr::pwalk(
     styles,
@@ -347,11 +347,12 @@ add_my_font_styles <- function(wb, styles) {
 
   remove <- apply(styles %>% select(-font_id), 1, function(x) all(is.na(x)))
 
-  styles <- styles[!remove,]
+  styles <- styles[!remove,] %>%
+    select(color, sz, b, i, u, strike, name, vert_align, font_id)
 
   purrr::pmap(
     styles,
-    \(b,color,font_id,i,name,sz,u,vert_align) {
+    \(color, sz, b, i, u, strike, name, vert_align, font_id) {
 
 
       x <- create_font(b = b, color = wb_color(color), i = i, name = name, charset = "1",
@@ -420,50 +421,50 @@ xl_hdr_superscript <- function(wb, ws, data, styles, start_row = 1, start_col = 
 
       # ---- get the dims
 
+
       dims <- rowcol_to_dims(irow + row_offset, icol + col_offset)
 
 
       #browser()
       purrr::map(data[irow, icol], function(ftnt_lines) {
 
+
         x <- NULL #fmt_txt("")
         #cat(irow, icol, class(ftnt_lines), nrow(ftnt_lines),"\n")
         if(nrow(ftnt_lines) > 1) {
+          purrr::pmap(
+            ftnt_lines, \(txt, font.size, italic, bold,
+                          underlined, strike, color, shading.color, font.family,
+                          hansi.family, eastasia.family, cs.family,
+                          vertical.align, width, height, url,
+                          eq_data, word_field_data, qmd_data,
+                          img_data, .chunk_index) {
 
-          purrr::pmap(ftnt_lines, function(txt, font.size, italic, bold,
-                                           underlined, color, shading.color, font.family,
-                                           hansi.family, eastasia.family, cs.family,
-                                           vertical.align, width, height,  url,
-                                           eq_data, word_field_data,
-                                           img_data, .chunk_index) {
-
-
-
-            #if(irow == 4) browser()
+              #if(irow == 4) browser()
 
 
-            if(is.na(color)) {
-              color <- wb_color(hdr_data$color[irow, icol] %>% unname())
-            } else {
-              color <- wb_color(color)
-            }
+              if(is.na(color)) {
+                color <- wb_color(hdr_data$color[irow, icol] %>% unname())
+              } else {
+                color <- wb_color(color)
+              }
 
 
-            x <<- x + fmt_txt(txt,
-                              font = ifelse(is.na(font.family),
-                                            hdr_data$font.family[irow, icol], font.family),
-                              bold = ifelse(is.na(bold),
-                                            hdr_data$bold[irow, icol] ,
-                                            bold),
-                              color = color,
+              x <<- x + fmt_txt(txt,
+                                font = ifelse(is.na(font.family),
+                                              hdr_data$font.family[irow, icol], font.family),
+                                bold = ifelse(is.na(bold),
+                                              hdr_data$bold[irow, icol] ,
+                                              bold),
+                                color = color,
 
-                              size = ifelse(is.na(font.size),
-                                            hdr_data$font.size[irow, icol], font.size),
-                              vert_align = ifelse(is.na(vertical.align), "baseline",
-                                                  vertical.align))
+                                size = ifelse(is.na(font.size),
+                                              hdr_data$font.size[irow, icol], font.size),
+                                vert_align = ifelse(is.na(vertical.align), "baseline",
+                                                    vertical.align))
 
 
-          })
+            })
 
 
           wb <<- wb_add_data(wb = wb, sheet = ws, x = x, dims = dims)
@@ -485,12 +486,13 @@ xl_footnotes <- function(wb, ws, data, start_row) {
     dims <- rowcol_to_dims(irow, 1)
     x <- fmt_txt("")
 
-    purrr::pmap(ftnt_lines, function(txt, font.size, italic, bold,
-                                     underlined, color, shading.color, font.family,
-                                     hansi.family, eastasia.family, cs.family, vertical.align,
-                                     width, height,  url, eq_data, word_field_data,
-                                     img_data, .chunk_index) {
-
+    purrr::pmap(
+      ftnt_lines, \(txt, font.size, italic, bold,
+                    underlined, strike, color, shading.color, font.family,
+                    hansi.family, eastasia.family, cs.family,
+                    vertical.align, width, height, url,
+                    eq_data, word_field_data, qmd_data,
+                    img_data, .chunk_index) {
 
       x <<- x + fmt_txt(txt,
                         bold = ifelse(is.na(bold), FALSE, bold),
@@ -499,6 +501,7 @@ xl_footnotes <- function(wb, ws, data, start_row) {
                         vert_align = ifelse(is.na(vertical.align), "baseline", vertical.align))
 
     })
+
     wb <<- wb_add_data(wb = wb, sheet = ws, x = x, dims = dims)
     irow <<- irow + 1
   })

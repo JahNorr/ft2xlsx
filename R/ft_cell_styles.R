@@ -16,7 +16,7 @@ part_styles <- function(ft, part, type = c("cells", "text", "pars"))  {
       lst <- type_vars %>% purrr::map_chr( \(var) {
 
         x  <-  ft[[part]]$styles[[type]][[var]]$data[irow,jcol]
-        x
+        x %>% as.character()
       })
 
       names(lst) <- type_vars
