@@ -19,13 +19,11 @@ library(flextable)
 #' @import dplyr
 #' @import openxlsx2
 #' @import flextable
-#' @import officer
 #'
 #' @export
 #'
 #' @examples
 #' library(flextable)
-#' library(officer)
 #'
 #' ft <- mtcars %>%
 #'   head(10) %>%
@@ -34,9 +32,9 @@ library(flextable)
 #'   flextable() %>%
 #'   add_header_lines(c("ft_to_xlsx Example", "mtcars")) %>%
 #'   align(align = "center", part = "header") %>%
-#'   hline(i = 1, border = fp_border(width = 0), part = "header") %>%
-#'   vline(j = 3:4, border = fp_border_default()) %>%
-#'   hline(i = 6:7, border = fp_border(width = 1), part = "body") %>%
+#'   hline(i = 1, border = officer::fp_border(width = 0), part = "header") %>%
+#'   vline(j = 3:4, border = officer::fp_border_default()) %>%
+#'   hline(i = 6:7, border = officer::fp_border(width = 1), part = "body") %>%
 #'   bg(j = 4, bg = "#bbddcc") %>%
 #'   bold(i = 4, bold = TRUE) %>%
 #'   italic( i = 7, italic = TRUE) %>%
