@@ -54,7 +54,7 @@ ft_to_xlsx2 <- function(ft, file = "ft_to_xlsx.xlsx",
                         bottom_margin = 0.75,
                         style = TRUE,
                         append = FALSE,
-                        tab_color = tab_color,
+                        tab_color = NULL,
                         verbose = FALSE) {
 
 
