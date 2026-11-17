@@ -13,11 +13,28 @@ part_styles <- function(ft, part, type = c("cells", "text", "pars"))  {
 
     purrr::map(1:ncols, \(jcol) {
 
-      lst <- type_vars %>% purrr::map_chr( \(var) {
+      inspect <- FALSE
 
-        x  <-  ft[[part]]$styles[[type]][[var]]$data[irow,jcol]
-        x %>% as.character()
+      lst <- purrr::map_chr(type_vars, \(var) {
+
+        df <- ft[[part]]$styles[[type]][[var]]$data
+
+        if(nrow(df) == 0) return(NA)
+
+        x  <-  tryCatch({
+          x0 <- df[irow,jcol]
+          x0 %>% as.character()
+        },
+        error = function(e) {
+
+          inspect <<- TRUE
+
+          return(NA)
+        }
+        )
       })
+      #      if(inspect) browser()
+      if(all(is.na(lst))) return(NULL)
 
       names(lst) <- type_vars
       lst["part"] <- part
@@ -27,9 +44,12 @@ part_styles <- function(ft, part, type = c("cells", "text", "pars"))  {
 
     })
 
-  }) %>% bind_rows() %>%
+  }) %>% bind_rows()
+
+  if(nrow(df_sty) > 0) df_sty <- df_sty %>%
     relocate(c(part, irow, jcol))
 
+  df_sty
 }
 
 # ===========   borders  =========================
@@ -189,6 +209,6 @@ ft_cell_style_info <- function(ft) {
     border_styles = df_border_styles,
     fill_styles = df_fill_styles,
     margins_styles = df_margins_styles
-    )
+  )
 }
 

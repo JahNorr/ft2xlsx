@@ -98,12 +98,12 @@ ft_to_xlsx2 <- function(ft, file = "ft_to_xlsx.xlsx",
 
   if(verbose) cat(" ... adding header data\n")
 
-  wb$add_data(ws, df_header, startRow = start_header_row,
+  wb$add_data(ws, df_header, startRow = start_header_row, na = "",
               startCol = start_col, colNames = FALSE)
 
   if(verbose) cat(" ... adding body data\n")
 
-  wb$add_data(ws, df_body,   startRow = start_body_row,
+  wb$add_data(ws, df_body,   startRow = start_body_row, na = "",
               startCol = start_col, colNames = FALSE)
 
 
@@ -133,7 +133,7 @@ ft_to_xlsx2 <- function(ft, file = "ft_to_xlsx.xlsx",
     df_footer   <- ft$footer$dataset   %>% select(all_of(ft$footer$col_keys))
 
     if(verbose) cat(" ... adding footer data\n")
-    wb$add_data(ws, df_footer,   startRow = start_footer_row,
+    wb$add_data(ws, df_footer,   startRow = start_footer_row, na = "",
                 startCol = start_col, colNames = FALSE)
 
   } else {
